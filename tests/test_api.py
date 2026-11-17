@@ -98,6 +98,26 @@ def test_simulate_rejects_out_of_range(client):
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("hold", [600, 1801, 0, -5])
+def test_simulate_caps_hold_at_three_minutes(client, hold):
+    """The panel only offers 1 or 3 minutes; the API must refuse anything longer."""
+    response = client.post(
+        "/api/simulate",
+        json={"latitude": 40.416863, "longitude": -3.703876, "hold_seconds": hold},
+    )
+    assert response.status_code == 422
+
+
+def test_simulate_accepts_three_minutes(client):
+    """180 s is the longest allowed session, so it must pass validation."""
+    response = client.post(
+        "/api/simulate",
+        json={"latitude": 40.416863, "longitude": -3.703876, "hold_seconds": 180},
+    )
+    # No iPhone attached in CI - the request is valid, so the device check answers.
+    assert response.status_code == 409
+
+
 def test_index_is_served(client):
     response = client.get("/")
     assert response.status_code == 200

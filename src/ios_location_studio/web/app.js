@@ -3,7 +3,7 @@
 const state = {
   lat: null,
   lon: null,
-  hold: 300,
+  hold: 60,
   session: { state: 'idle' },
   device: { connected: false, devices: [] },
   brand: null,
@@ -263,7 +263,7 @@ el('actionBtn').addEventListener('click', async () => {
   await call('/api/simulate', 'POST', {
     latitude: state.lat,
     longitude: state.lon,
-    hold_seconds: state.hold > 0 ? state.hold : null,
+    hold_seconds: state.hold || 60,
   });
 });
 

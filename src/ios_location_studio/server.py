@@ -52,11 +52,11 @@ def asset_stamp() -> str:
 class SimulateRequest(BaseModel):
     latitude: float = Field(..., ge=-90.0, le=90.0, description="WGS84 latitude")
     longitude: float = Field(..., ge=-180.0, le=180.0, description="WGS84 longitude")
-    hold_seconds: float | None = Field(
-        default=None,
+    hold_seconds: float = Field(
+        default=180.0,
         ge=1.0,
-        le=86400.0,
-        description="How long to keep the fix active; null means until stopped manually.",
+        le=180.0,
+        description="How long to keep the fix active. Hard-capped at 3 minutes: the panel offers 1 or 3 minutes only, so a session can never be left running indefinitely.",
     )
     udid: str | None = Field(default=None, description="Target device; first device when omitted.")
 
