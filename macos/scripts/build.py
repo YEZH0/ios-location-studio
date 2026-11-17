@@ -6,7 +6,7 @@ root=Path(__file__).resolve().parents[1]
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--windowed',
     '--name','iOS Location Studio','--osx-bundle-identifier','xyz.yezhihong.locationstudio.mac',
     '--paths',str(root/'src'), '--collect-all','accessory_location',
-    '--collect-data','location_studio_mac','--collect-all','pymobiledevice3','--hidden-import','location_studio_mac.worker',
+    '--recursive-copy-metadata','pymobiledevice3','--collect-data','location_studio_mac','--collect-all','pymobiledevice3','--hidden-import','location_studio_mac.worker',
     '--add-data',f'{root / "vendor/accessory-location"}:upstream',
     '--add-data',f'{root / "LICENSE"}:notices',
     '--add-data',f'{root / "THIRD_PARTY_NOTICES.md"}:notices',

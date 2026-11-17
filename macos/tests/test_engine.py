@@ -93,3 +93,27 @@ def test_ui_coordinate_zoom_and_duration_controls(app):
     assert abs(west+point.x()/w.grid.width()*width+74.006)<1e-8
     assert abs(north-point.y()/w.grid.height()*height-40.7128)<1e-8
     w.close()
+
+
+def test_gui_defaults_to_dvt_without_mfi(app,monkeypatch):
+    from location_studio_mac.app import Window
+    from PySide6.QtWidgets import QMessageBox
+    w=Window();assert w.route.currentData()=='dvt'
+    w.cert.clear();w.key.clear();calls=[]
+    monkeypatch.setattr(QMessageBox,'question',lambda *a:QMessageBox.Yes)
+    monkeypatch.setattr(w.engine,'start',lambda *a,**kw:calls.append((a,kw)))
+    w.launch('send')
+    assert calls[0][1]['route']=='dvt'
+    assert calls[0][0][0]=='send' and w.needs_restore
+    w.needs_restore=False;w.close()
+
+
+def test_dvt_command_uses_loopback_sandbox_without_mfi(app,monkeypatch):
+    engine=Engine();calls=[]
+    monkeypatch.setattr(engine.process,'start',lambda *a:calls.append(a))
+    engine.start('send',lat=40.7128,lon=-74.006,duration=60,route='dvt')
+    command=' '.join(str(x) for x in calls[0])
+    assert 'dvt-local-only.sb' in command and 'dvt_send' in command
+    assert '--auth-helper' not in command
+    assert engine.stop_grace>=10000
+    engine.guard.stop()

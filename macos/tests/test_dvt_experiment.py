@@ -5,10 +5,8 @@ import pytest
 
 
 def load(name):
-    path=Path(__file__).resolve().parents[1]/'scripts'/f'{name}.py'
-    spec=importlib.util.spec_from_file_location(name,path)
-    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-    return module
+    from location_studio_mac import dvt
+    return dvt
 
 
 def test_official_tool_summary_redacts_identifiers():
@@ -29,9 +27,11 @@ async def test_dvt_always_clears_and_closes(monkeypatch,set_fails):
             calls.append('set')
             if set_fails: raise RuntimeError('synthetic')
         async def clear(self): calls.append('clear')
+        async def is_image_mounted(self,*args):return True
     class Phone:
         identifier='synthetic'
         async def close(self): calls.append('phone_close')
+        async def get_developer_mode_status(self):return True
     async def devices(): return [SimpleNamespace(connection_type='USB')]
     async def phone(**kwargs): return Phone()
     monkeypatch.setattr(module,'list_devices',devices)

@@ -27,10 +27,13 @@ class State:
     def __init__(self):
         self.identified = self.authenticated = self.subscribed = False
         self.acks = 0
+        self.dvt_connected = self.dvt_set = False
         self.map_verified = self.restored = False
 
     def consume(self, event):
         name = event.get('event')
+        if name == 'dvt_tunnel_connected': self.dvt_connected = True
+        if name == 'dvt_set_sent': self.dvt_set = True
         if name == 'identification_accepted': self.identified = True
         if name == 'authentication_succeeded': self.authenticated = True
         if name == 'location_requested': self.subscribed = bool(event.get('sentences'))
@@ -72,11 +75,13 @@ class Engine(QObject):
     def running(self):
         return self.process.state() != QProcess.NotRunning
 
-    def start(self, action, cert='', key='', lat=0, lon=0, duration=20):
+    def start(self, action, cert='', key='', lat=0, lon=0, duration=20, route='iap2'):
         if self.running: raise ValueError('已有会话运行，请先停止')
-        if action not in ('device', 'probe', 'send'): raise ValueError('未知操作')
-        if action != 'device':
+        if route not in ('iap2','dvt'): raise ValueError('未知定位路线')
+        if action not in ('device', 'probe', 'send','dvt_prepare'): raise ValueError('未知操作')
+        if action not in ('device','dvt_prepare'):
             validate(lat, lon, duration)
+        if action in ('probe','send') and route=='iap2':
             if not Path(cert).is_file() or not Path(key).is_file():
                 raise ValueError('请选择项目目录之外的证书与匹配私钥')
         from PySide6.QtCore import QProcessEnvironment
@@ -88,13 +93,24 @@ class Engine(QObject):
         params = QProcess.UnixProcessParameters()
         params.flags = QProcess.UnixProcessFlag.CreateNewSession
         self.process.setUnixProcessParameters(params)
+        dvt = route=='dvt' and action!='device'
+        if dvt and action=='send' and duration>180: raise ValueError('DVT 测试最长 180 秒')
         args = [action]
-        if action != 'device':
+        if action not in ('device','dvt_prepare'):
             args += ['--transport', 'usb', '--auth-helper', str(self.helper), '--duration', str(duration)]
         if action == 'send': args += ['--latitude', str(lat), '--longitude', str(lon)]
         self.buffer = b''
-        self.process.start('/usr/bin/sandbox-exec', ['-f', str(resources()/'tools/local-only.sb'), *self.command(*args)])
-        self.guard.start((duration + 30 if action != 'device' else 20) * 1000)
+        self.stop_grace=15000 if dvt else 3000
+        if action=='dvt_prepare':
+            self.process.start(self.command('dvt_prepare','--allow-apple-ticket')[0],self.command('dvt_prepare','--allow-apple-ticket')[1:])
+        else:
+            profile=resources()/'tools/local-only.sb'
+            if dvt:
+                args=['dvt_'+action,'--duration',str(duration)]
+                if action=='send':args+=['--latitude',str(lat),'--longitude',str(lon)]
+                profile=Path(__file__).parent/'assets/dvt-local-only.sb'
+            self.process.start('/usr/bin/sandbox-exec', ['-f', str(profile), *self.command(*args)])
+        self.guard.start((90 if action=='dvt_prepare' else duration+60 if dvt else duration+30 if action!='device' else 20)*1000)
 
     def read(self):
         self.buffer += bytes(self.process.readAllStandardOutput())
@@ -114,7 +130,7 @@ class Engine(QObject):
         self.group = int(self.process.processId())
         try: os.killpg(self.group, signal.SIGINT)
         except ProcessLookupError: pass
-        self.kill_timer.start(3000)
+        self.kill_timer.start(getattr(self,'stop_grace',3000))
 
     def kill_group(self):
         if self.group:

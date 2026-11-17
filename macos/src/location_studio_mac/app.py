@@ -4,7 +4,11 @@ import sys
 # Worker dispatch must precede GUI initialization, including in the frozen bundle.
 if '--worker' in sys.argv:
     from .worker import run
-    run()
+    try:run()
+    except Exception as error:
+        import json
+        print(json.dumps({'event':'error','type':type(error).__name__}),flush=True)
+        raise SystemExit(1)
     raise SystemExit
 
 import time
@@ -98,7 +102,7 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__();self.setWindowTitle('iOS Location Studio · macOS');self.resize(1160,820);self.setMinimumSize(940,640)
         self.engine=Engine();self.state=State();self.mode=None;self.deadline=None
-        self.closing=False;self.sending=False;self.needs_restore=False;self.session_duration=180
+        self.closing=False;self.sending=False;self.needs_restore=False;self.session_duration=180;self.last_error=None
         self.engine.event.connect(self.on_event);self.engine.ended.connect(self.on_end)
         root=QWidget();self.setCentralWidget(root);shell=QHBoxLayout(root);shell.setContentsMargins(0,0,0,0);shell.setSpacing(0)
         sidebar=QScrollArea();sidebar.setObjectName('sidebar');sidebar.setWidgetResizable(True);sidebar.setFixedWidth(356)
@@ -108,6 +112,8 @@ class Window(QMainWindow):
         brand=QHBoxLayout();mark=BrandMark();brand.addWidget(mark)
         names=QVBoxLayout();title=QLabel('Location Studio');title.setObjectName('brandTitle');names.addWidget(title)
         subtitle=QLabel('iPhone 定位模拟 · macOS');subtitle.setObjectName('muted');names.addWidget(subtitle);brand.addLayout(names);brand.addStretch();form.addLayout(brand)
+        self.route=QComboBox();self.route.addItem('DVT 开发者定位 · 推荐','dvt');self.route.addItem('iAP2 配件定位 · 实验','iap2');form.addWidget(self.route)
+        self.prepare=QPushButton('准备开发者连接');self.prepare.clicked.connect(lambda:self.launch('dvt_prepare'));form.addWidget(self.prepare)
         device_box=QFrame();device_box.setObjectName('card');dv=QVBoxLayout(device_box);dv.setContentsMargins(14,12,14,12)
         dh=QHBoxLayout();dh.addWidget(QLabel('设备'));dh.addStretch();self.detect=QPushButton('检测 USB');self.detect.setObjectName('compact');self.detect.clicked.connect(lambda:self.launch('device'));dh.addWidget(self.detect);dv.addLayout(dh)
         self.device=QLabel('尚未连接 iPhone');self.device.setWordWrap(True);dv.addWidget(self.device)
@@ -145,8 +151,9 @@ class Window(QMainWindow):
         self.probe=QPushButton('检查通信与认证 · 20 秒');self.probe.clicked.connect(lambda:self.launch('probe'));av.addWidget(self.probe)
         advanced=QToolButton();advanced.setText('认证设置与通信检查');advanced.setCheckable(True);advanced.setArrowType(Qt.RightArrow);advanced.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         advanced.toggled.connect(lambda checked:(auth.setVisible(checked),advanced.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)))
+        self.advanced=advanced;self.auth=auth
         form.addWidget(advanced);form.addWidget(auth);auth.hide()
-        warning=QLabel('iAP2 实验方案\n认证或 ACK 不代表位置已改变。请在手机验证，并在结束后确认恢复。');warning.setObjectName('warning');warning.setWordWrap(True);form.addWidget(warning)
+        self.warning=warning=QLabel('iAP2 实验方案\n认证或 ACK 不代表位置已改变。请在手机验证，并在结束后确认恢复。');warning.setObjectName('warning');warning.setWordWrap(True);form.addWidget(warning)
         author=QLabel('欧耶哥爱数码\n抖音 / 小红书同名 · 仅用于合法定位测试');author.setObjectName('muted');author.setWordWrap(True);form.addWidget(author);form.addStretch()
         side_container=QWidget();side_container.setFixedWidth(356);side_layout=QVBoxLayout(side_container)
         side_layout.setContentsMargins(0,0,0,0);side_layout.setSpacing(0);side_layout.addWidget(sidebar,1)
@@ -158,7 +165,7 @@ class Window(QMainWindow):
         workspace=QWidget();right=QVBoxLayout(workspace);right.setContentsMargins(24,24,24,20);right.setSpacing(14)
         top=QHBoxLayout();heading=QLabel('目标位置');heading.setObjectName('heading');top.addWidget(heading);top.addStretch();badge=QLabel('离线世界地图 · WGS-84');badge.setObjectName('pill');top.addWidget(badge);right.addLayout(top)
         self.target_label=QLabel('纽约 · New York   /   40.712800, -74.006000');self.target_label.setObjectName('muted');self.target_label.setWordWrap(True);right.addWidget(self.target_label)
-        notice=QLabel('实验性 iAP2 · 认证 / ACK 不代表手机采用位置');notice.setObjectName('notice');notice.setWordWrap(True);right.addWidget(notice)
+        self.notice=notice=QLabel('实验性 iAP2 · 认证 / ACK 不代表手机采用位置');notice.setObjectName('notice');notice.setWordWrap(True);right.addWidget(notice)
         toolbar=QHBoxLayout();tip=QLabel('点击选点，或输入精确坐标');tip.setObjectName('muted');toolbar.addWidget(tip);toolbar.addStretch()
         self.grid=Grid();self.grid.selected.connect(self.set_coordinates)
         for text,callback in [('−',lambda:self.grid.change_zoom(.5)),('+',lambda:self.grid.change_zoom(2)),('全球',self.reset_map)]:
@@ -173,9 +180,20 @@ class Window(QMainWindow):
         self.log=QPlainTextEdit();self.log.setReadOnly(True);self.log.setMaximumBlockCount(120);self.log.setFixedHeight(110)
         log_toggle.toggled.connect(lambda checked:(self.log.setVisible(checked),self.grid.setMinimumHeight(110 if checked else 220),log_toggle.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)))
         right.addWidget(log_toggle);right.addWidget(self.log);self.log.hide()
-        footer=QLabel('USB iAP2 · 本机运行   |   上游 accessory-location · GPL-3.0-only');footer.setObjectName('muted');footer.setWordWrap(True);right.addWidget(footer)
+        self.footer=footer=QLabel('USB iAP2 · 本机运行   |   上游 accessory-location · GPL-3.0-only');footer.setObjectName('muted');footer.setWordWrap(True);right.addWidget(footer)
         shell.addWidget(workspace,1)
+        self.route.currentIndexChanged.connect(self.route_changed);self.route_changed()
         self.timer=QTimer(self);self.timer.timeout.connect(self.tick);self.timer.start(250);self.refresh()
+
+    def route_changed(self):
+        dvt=self.route.currentData()=='dvt'
+        self.warning.setText('DVT 开发者定位\n请在手机确认位置变化，停止后确认真实定位恢复。' if dvt else 'iAP2 实验方案\n认证或 ACK 不代表位置已改变。请在手机验证，并在结束后确认恢复。')
+        self.footer.setText(('USB DVT' if dvt else 'USB iAP2')+' · 本机运行   |   GPL-3.0-only')
+        self.prepare.setVisible(dvt);self.advanced.setVisible(not dvt)
+        self.auth.setVisible(not dvt and self.advanced.isChecked())
+        self.duration.setMaximum(180 if dvt else 3600)
+        self.notice.setText('DVT 开发者定位 · 请求已发送仍需在手机验证' if dvt else '实验性 iAP2 · 认证 / ACK 不代表手机采用位置')
+        self.refresh()
 
     def copy_coordinates(self):
         try:
@@ -214,25 +232,30 @@ class Window(QMainWindow):
         try:
             if self.needs_restore and mode=='send':
                 raise ValueError('请先完成上次会话的真实定位恢复确认')
+            route=self.route.currentData()
+            if mode=='dvt_prepare':
+                if QMessageBox.question(self,'准备开发者连接','将使用 Apple 官方 devicectl 准备开发者镜像。首次可能向 Apple 发送 ECID、芯片/主板编号、nonce 和镜像摘要申请票据，不发送坐标或 MFi 私钥。是否同意？')!=QMessageBox.Yes:return
             lat,lon,duration=validate(self.lat.text(),self.lon.text(),self.duration.value()) if mode=='send' else (0,0,20)
             if mode=='send':
                 answer=QMessageBox.question(self,'确认定位测试',f'向 iPhone 发送 WGS-84 坐标 {lat:.6f}, {lon:.6f}，持续 {duration} 秒？\n请在手机苹果地图点击当前位置。')
                 if answer!=QMessageBox.Yes: return
-            if mode!='device':
+            if mode in ('probe','send') and route=='iap2':
                 from .worker import resources
                 import importlib.util
                 spec=importlib.util.spec_from_file_location('mfi_validation',resources()/'tools/local_mfi_v3_helper.py')
                 module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
                 module.validate_identity(Path(self.cert.text()).read_bytes(),Path(self.key.text()).read_bytes())
+            self.last_error=None
             self.state=State(); self.mode=mode
-            self.engine.start(mode,self.cert.text(),self.key.text(),lat,lon,duration)
+            self.engine.start(mode,self.cert.text(),self.key.text(),lat,lon,duration,route=route)
+            if mode=='dvt_prepare':duration=75
             self.session_duration=duration
             self.deadline=time.monotonic()+duration; self.sending=mode=='send'
             if self.sending: self.needs_restore=True
             self.log.clear(); self.refresh()
         except Exception as e:
             # Do not display file data or identifiers in arbitrary exception messages.
-            text=str(e) if isinstance(e,ValueError) else '请检查所选证书、私钥的格式与匹配关系。'
+            text=str(e) if isinstance(e,ValueError) else '启动失败，请检查设备连接与当前路线的准备状态。'
             QMessageBox.warning(self,'无法启动',text)
 
     def on_event(self,event):
@@ -244,6 +267,15 @@ class Window(QMainWindow):
                 'error':'协议错误，请检查手机连接、身份有效性与兼容性',
                 'process_error':'进程启动失败，请检查沙箱和应用完整性',
                 'interrupted':'会话已停止','finished':'限时会话已结束','process_exit':'工作进程已退出'}
+        labels.update({'dvt_tunnel_connected':'DVT 隧道已建立','dvt_probe_succeeded':'开发者通道检查成功（未发送坐标）','dvt_set_sent':'DVT 坐标请求已发送，请在手机验证','dvt_clear_sent':'已发送清除请求，请确认真实位置','dvt_session_closed':'DVT 会话已关闭','dvt_clear_error':'清除请求失败，请断开 USB 并检查真实位置','developer_image_preparation':'开发者镜像准备已返回，请检查通道'})
+        if name=='error':
+            labels['error']={'DVTImageRequired':'请先点击“准备开发者连接”','DeveloperModeRequired':'请在 iPhone 开启开发者模式后重试','RequireExactlyOneUSBDevice':'请仅连接一台 iPhone，解锁并信任','XcodeRequired':'开发者镜像准备需要安装完整 Xcode'}.get(event.get('type'),'定位通道失败，请停止并检查设备连接和准备状态')
+        if name=='developer_image_preparation' and event.get('exit_code')!=0:labels[name]='开发者镜像准备失败，请检查 Xcode、手机解锁与授权'
+        if name=='dvt_tunnel_connected':self.device.setText('iPhone 已通过 USB 开发者通道连接')
+        if name=='error':self.last_error=labels['error']
+        if name=='process_exit' and event.get('code',0)!=0:
+            self.last_error=self.last_error or '工作进程异常退出，请检查应用完整性与准备状态'
+            labels[name]=self.last_error
         if name=='device_ready': self.device.setText(f'USB 已配对 · {event["model"]} · iOS {event["ios"]}')
         if name=='device_count': self.device.setText('请仅连接一台 USB iPhone，再解锁并信任后重试。')
         if name=='device_error': self.device.setText('连接失败：检查 USB、解锁与信任授权。')
@@ -252,12 +284,15 @@ class Window(QMainWindow):
 
     def refresh(self):
         busy=self.engine.running
-        for widget in (self.detect,self.probe,self.start,self.city,self.lat,self.lon,self.duration,self.grid,*self.quick_buttons,*self.auth_widgets,*(b for b,_ in self.duration_buttons)): widget.setEnabled(not busy)
+        for widget in (self.detect,self.probe,self.prepare,self.route,self.start,self.city,self.lat,self.lon,self.duration,self.grid,*self.quick_buttons,*self.auth_widgets,*(b for b,_ in self.duration_buttons)): widget.setEnabled(not busy)
         self.stop.setEnabled(busy)
-        self.session_badge.setText("发送中" if busy and self.sending else "检查中" if busy else "待确认恢复" if self.needs_restore else "未启动")
-        self.map_button.setEnabled(busy and self.sending and self.state.acks>0 and not self.state.map_verified)
+        self.session_badge.setText("发送中" if busy and self.sending else "检查中" if busy else "待确认恢复" if self.needs_restore else "失败" if self.last_error else "未启动")
+        self.map_button.setEnabled(busy and self.sending and (self.state.acks>0 or self.state.dvt_set) and not self.state.map_verified)
         self.restore.setEnabled(not busy and self.needs_restore)
-        self.status.setText(f'身份识别：{"已接受" if self.state.identified else "未验证"}   ·   认证：{"成功" if self.state.authenticated else "未验证"}\n订阅：{"活跃" if self.state.subscribed else "未订阅 / 已停止"}   ·   ACK：{self.state.acks}\n手机位置：{"用户已确认改变" if self.state.map_verified else "尚未人工验证"}   ·   恢复：{"用户已确认" if self.state.restored else "未确认"}')
+        if self.route.currentData()=='dvt':
+            self.status.setText(f'DVT 通道：{"已连接" if self.state.dvt_connected else "未验证"}   ·   坐标请求：{"已发送" if self.state.dvt_set else "未发送"}\n手机位置：{"用户已确认改变" if self.state.map_verified else "尚未人工验证"}   ·   恢复：{"用户已确认" if self.state.restored else "未确认"}')
+        else:
+            self.status.setText(f'身份识别：{"已接受" if self.state.identified else "未验证"}   ·   认证：{"成功" if self.state.authenticated else "未验证"}\n订阅：{"活跃" if self.state.subscribed else "未订阅 / 已停止"}   ·   ACK：{self.state.acks}\n手机位置：{"用户已确认改变" if self.state.map_verified else "尚未人工验证"}   ·   恢复：{"用户已确认" if self.state.restored else "未确认"}')
 
     def tick(self):
         if self.engine.running and self.deadline:
@@ -267,7 +302,7 @@ class Window(QMainWindow):
             self.progress.setValue(int(1000*min(1,max(0,1-remaining/max(1,self.session_duration)))))
         else:
             self.counter.setText('--:--');self.progress.setValue(0)
-            self.countdown.setText('已停止，请确认真实定位恢复' if self.needs_restore else '未运行 · 无后台定位任务')
+            self.countdown.setText(('失败：'+self.last_error) if self.last_error else '已停止，请确认真实定位恢复' if self.needs_restore else '未运行 · 无后台定位任务')
         self.refresh()
 
     def on_end(self):

@@ -13,6 +13,9 @@ def resources():
 
 def run():
     action = sys.argv[2]
+    if action in ('dvt_prepare','dvt_probe','dvt_send'):
+        from .dvt import main
+        main(action,sys.argv[3:]);return
     if action == 'helper':
         import runpy
         runpy.run_path(str(resources() / 'tools/local_mfi_v3_helper.py'), run_name='__main__')
