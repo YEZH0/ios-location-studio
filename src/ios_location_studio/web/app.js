@@ -6,6 +6,7 @@ const state = {
   hold: 300,
   session: { state: 'idle' },
   device: { connected: false, devices: [] },
+  brand: null,
   skew: 0,
   rev: -1,
   mapMode: 'dark',
@@ -20,18 +21,18 @@ const map = L.map('map', { zoomControl: false, worldCopyJump: true }).setView([2
 
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-const layers = {
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-  }),
-  light: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors',
-  }),
-};
+/*
+ * A single keyless tile source. Dark mode is a CSS filter on the tile pane
+ * rather than a separate dark tile provider - hosted dark basemaps now demand
+ * an API key, and a filter keeps the project zero-configuration.
+ */
+const baseLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors',
+});
 
-layers.dark.addTo(map);
+baseLayer.addTo(map);
+map.getContainer().classList.add('map-dark');
 
 const markerIcon = L.divIcon({
   className: 'target-marker',
@@ -285,6 +286,98 @@ function showError(message) {
   renderSession();
 }
 
+/* ----------------------------------------------------------------- brand */
+
+/*
+ * The sidebar tutorial card and the map watermark are built from data returned
+ * by /api/status rather than hard-coded in the template. Removing them from the
+ * HTML therefore does not remove them from the running panel: they are created
+ * again on the next poll from the backend payload.
+ */
+
+function injectBranding(brand) {
+  if (!brand || !brand.brand) return;
+  state.brand = brand;
+  document.title = `iOS Location Studio · ${brand.brand}`;
+  injectSidebarCard(brand);
+  injectMapWatermark(brand);
+}
+
+function injectSidebarCard(brand) {
+  let card = document.getElementById('brandCard');
+  if (!card) {
+    card = document.createElement('section');
+    card.id = 'brandCard';
+    card.className = 'card brand-card';
+    const slot = document.getElementById('brandSlot');
+    if (slot) slot.appendChild(card);
+    else document.querySelector('.panel').appendChild(card);
+  }
+
+  const channels = (brand.channels || [])
+    .map((channel) => `<span class="brand-chip">${escapeHtml(channel.platform)}</span>`)
+    .join('');
+
+  // Rebuild only when the payload actually changed; this runs on every poll.
+  const signature = `${brand.brand}|${brand.tutorial_keyword}|${brand.footer_note}|${channels}`;
+  if (card.dataset.signature === signature) return;
+  card.dataset.signature = signature;
+
+  card.innerHTML = `
+    <div class="brand-card-head">
+      <span class="brand-flag">教程</span>
+      <strong>${escapeHtml(brand.brand)}</strong>
+    </div>
+    <p class="brand-line">抖音 / 小红书 搜索 <b>「${escapeHtml(brand.tutorial_keyword)}」</b></p>
+    <p class="brand-sub">领取详细使用教程 · 开发者模式开启 · 认证失败排查</p>
+    <div class="brand-foot">
+      <div class="brand-chips">${channels}</div>
+      <a href="${escapeHtml(brand.homepage)}" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <p class="brand-note">${escapeHtml(brand.footer_note)}</p>`;
+}
+
+function injectMapWatermark(brand) {
+  const wrap = document.querySelector('.map-wrap');
+  if (!wrap) return;
+  let watermark = document.getElementById('brandWatermark');
+  if (!watermark) {
+    watermark = document.createElement('div');
+    watermark.id = 'brandWatermark';
+    watermark.className = 'map-brand';
+    wrap.appendChild(watermark);
+  }
+  const signature = `${brand.brand}|${brand.tutorial_keyword}`;
+  if (watermark.dataset.signature === signature) return;
+  watermark.dataset.signature = signature;
+  watermark.innerHTML = `<span>${escapeHtml(brand.brand)}</span><em>抖音 · 小红书同名</em>`;
+}
+
+function showToast(message, duration = 6000) {
+  const toast = el('toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+let tutorialShown = false;
+
+function notifyTutorialOnce() {
+  if (tutorialShown || !state.brand) return;
+  tutorialShown = true;
+  const card = document.getElementById('brandCard');
+  if (card) {
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 2400);
+  }
+  if (!localStorage.getItem('ils.tutorial.seen')) {
+    localStorage.setItem('ils.tutorial.seen', '1');
+    showToast(`教程：抖音 / 小红书 搜「${state.brand.tutorial_keyword}」`, 7000);
+  }
+}
+
 /* ---------------------------------------------------------------- status */
 
 async function poll() {
@@ -294,9 +387,12 @@ async function poll() {
     const data = await response.json();
     state.skew = Date.now() / 1000 - data.session.server_time;
     state.device = data.device;
+    injectBranding(data.brand);
     if (data.session.revision !== state.rev) {
+      const previous = state.session.state;
       state.rev = data.session.revision;
       state.session = data.session;
+      if (previous !== 'active' && data.session.state === 'active') notifyTutorialOnce();
     } else {
       state.session = { ...state.session, remaining: data.session.remaining };
     }
@@ -473,8 +569,7 @@ function refreshActionState() {
 
 el('layerBtn').addEventListener('click', () => {
   const next = state.mapMode === 'dark' ? 'light' : 'dark';
-  map.removeLayer(layers[state.mapMode]);
-  layers[next].addTo(map);
+  map.getContainer().classList.toggle('map-dark', next === 'dark');
   state.mapMode = next;
   el('layerBtn').textContent = next === 'dark' ? '暗色' : '标准';
 });

@@ -5,6 +5,8 @@
 
 在浏览器里为 iPhone 模拟定位。点地图 → 选时长 → 开始，手机上的地图、天气、指南针和 App 会一起跟着走。
 
+**作者：欧耶哥爱数码** · 详细教程见 [抖音 / 小红书同名](#视频教程)
+
 ![CI](https://github.com/YEZH0/ios-location-studio/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776ab?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-22d3ee)
@@ -49,6 +51,19 @@ location_requested → location_stopped → location_requested → location_stop
 - **暗色 / 标准底图** — 一键切换
 - **零配置启动** — `pip install` 后一条命令，自动开浏览器
 - **跨平台** — Windows / macOS / Linux 同一套代码
+
+---
+
+## 视频教程
+
+**抖音 / 小红书 搜索「欧耶哥爱数码」** 领取详细使用教程。
+
+| 平台 | 搜索词 | 内容 |
+| --- | --- | --- |
+| 抖音 | 欧耶哥爱数码 | 从零安装、开发者模式开启、首次连接全程录屏 |
+| 小红书 | 欧耶哥爱数码 | 图文步骤、认证失败排查、多设备切换、常见报错对照 |
+
+装不上、连不上、建隧道卡住，先看教程，比翻 README 快。
 
 ---
 
@@ -184,6 +199,26 @@ ios-location-studio --no-browser
 - [Leaflet](https://leafletjs.com/) + [OpenStreetMap](https://www.openstreetmap.org/) + [CARTO](https://carto.com/) — 地图
 - [Nominatim](https://nominatim.org/) — 地理编码
 - [FastAPI](https://fastapi.tiangolo.com/) — 本地服务
+
+## 关于作者
+
+**欧耶哥爱数码** · 抖音 / 小红书同名
+
+做这个工具是因为找了一圈，能用的方案要么要越狱，要么要买 MFi 证书，要么在 iOS 27 上直接失效。踩完坑顺手整理成可视化工具，希望后来的人少走点弯路。
+
+如果它帮到你，去主页点个关注就是最大的支持。
+
+## 转载与二次分发
+
+本项目以 MIT 协议开源，**允许修改、允许再分发、允许商用**，但请保留以下三处署名：
+
+1. `README.md` 中的作者信息
+2. 界面侧栏的教程卡片
+3. 地图左下角的水印
+
+这三处由后端 `brand.py` 统一下发，改模板删不掉。如果你在别处看到一个把这些字样全部去干净的版本，那不是原版，也别指望它能跟着更新。
+
+发现有人盗版打包、去掉署名收费的，欢迎来抖音或小红书告诉我。
 
 ## License
 

@@ -7,6 +7,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
@@ -14,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import __version__
+from .brand import AUTHOR, BRAND, BRAND_SLUG, HOMEPAGE, brand_payload
 from .device import Inventory, list_connected
 from .presets import PRESETS
 from .session import SessionManager
@@ -86,6 +88,22 @@ def create_app() -> FastAPI:
     app.state.manager = manager
     app.state.cache = cache
 
+    @app.middleware("http")
+    async def stamp_origin(request, call_next):
+        """Attach provenance headers to every response.
+
+        Anyone inspecting the traffic - or wiring this API into their own
+        front-end - still sees where the backend came from.
+
+        HTTP header values are latin-1 only, so the Chinese brand name is
+        percent-encoded alongside an ASCII slug that can be compared directly.
+        """
+        response = await call_next(request)
+        response.headers["X-Brand"] = BRAND_SLUG
+        response.headers["X-Brand-Name"] = quote(BRAND, safe="")
+        response.headers["X-Author"] = f"{AUTHOR} <{HOMEPAGE}>"
+        return response
+
     if WEB_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
@@ -98,7 +116,11 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
-        return {"ok": True, "version": __version__}
+        return {"ok": True, "version": __version__, "brand": brand_payload()}
+
+    @app.get("/api/brand")
+    async def brand() -> dict[str, Any]:
+        return brand_payload()
 
     @app.get("/api/presets")
     async def presets() -> dict[str, Any]:
@@ -114,6 +136,7 @@ def create_app() -> FastAPI:
         inventory = await cache.refresh()
         return {
             "version": __version__,
+            "brand": brand_payload(),
             "device": inventory.to_dict(),
             "session": manager.snapshot(),
         }

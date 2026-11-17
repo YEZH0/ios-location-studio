@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import unquote
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -40,10 +42,25 @@ def test_presets_are_well_formed():
 
 def test_status_shape(client):
     payload = client.get("/api/status").json()
-    assert set(payload) == {"version", "device", "session"}
+    assert set(payload) == {"version", "brand", "device", "session"}
     assert payload["device"]["connected"] is False
     assert payload["session"]["state"] == "idle"
     assert payload["session"]["remaining"] is None
+
+
+def test_brand_is_served(client):
+    brand = client.get("/api/brand").json()
+    assert brand["brand"] == "欧耶哥爱数码"
+    assert brand["tutorial_keyword"] == "欧耶哥爱数码"
+    assert brand["homepage"].startswith("https://github.com/")
+    assert len(brand["channels"]) >= 2
+
+
+def test_provenance_headers(client):
+    response = client.get("/api/health")
+    assert response.headers["X-Brand"] == "ouyege-aishuma"
+    assert unquote(response.headers["X-Brand-Name"]) == "欧耶哥爱数码"
+    assert "github.com" in response.headers["X-Author"]
 
 
 def test_simulate_without_device_returns_conflict(client):

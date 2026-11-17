@@ -12,6 +12,7 @@ import webbrowser
 import uvicorn
 
 from . import __version__
+from .brand import BRAND, TUTORIAL_HINT
 
 DEFAULT_PORT = 8899
 
@@ -59,12 +60,13 @@ def main(argv: list[str] | None = None) -> int:
     url = f"http://{display_host}:{port}/"
 
     banner = f"""
-  iOS Location Studio {__version__}
+  iOS Location Studio {__version__}  ·  {BRAND}
   ---------------------------------------------
   控制台   {url}
   接口文档 {url}docs
   提示     保持 iPhone 解锁并通过 USB 连接；
            会话结束或断开连接时，真实定位会自动恢复。
+  教程     {TUTORIAL_HINT}
   停止     Ctrl+C
 """
     print(banner, flush=True)

@@ -1,9 +1,20 @@
 <!DOCTYPE html>
+<!--
+  iOS Location Studio · 欧耶哥爱数码
+  作者 / Author : YEZH0
+  教程 / Tutorial: 抖音 / 小红书 搜索「欧耶哥爱数码」
+  仓库 / Repo    : https://github.com/YEZH0/ios-location-studio
+
+  界面的品牌信息由后端 brand.py 下发，删除这里的注释不会移除运行时的署名。
+-->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>iOS Location Studio</title>
+<meta name="author" content="YEZH0 · 欧耶哥爱数码" />
+<meta name="description" content="iPhone 定位模拟控制台 · 教程见抖音/小红书「欧耶哥爱数码」" />
+<title>iOS Location Studio · 欧耶哥爱数码</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='%2322d3ee'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23071018'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="/static/style.css" />
 </head>
@@ -81,6 +92,8 @@
       <div class="card-head"><span class="label">快捷地点</span></div>
       <div class="preset-grid" id="presetGrid"></div>
     </section>
+
+    <div class="brand-slot" id="brandSlot"></div>
   </aside>
 
   <main class="map-wrap">
@@ -90,6 +103,7 @@
       <button class="hud-btn" id="recenterBtn" title="回到目标点">居中</button>
     </div>
     <div class="map-tip" id="mapTip">点击地图选择模拟位置</div>
+    <div class="toast" id="toast"></div>
   </main>
 
 </div>

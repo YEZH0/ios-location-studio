@@ -9,6 +9,12 @@ description = "Visual simulated-location studio for iPhone over Apple's DVT deve
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+authors = [
+    { name = "YEZH0 (欧耶哥爱数码)", email = "175146713+YEZH0@users.noreply.github.com" },
+]
+maintainers = [
+    { name = "YEZH0 (欧耶哥爱数码)", email = "175146713+YEZH0@users.noreply.github.com" },
+]
 keywords = ["ios", "iphone", "location", "simulation", "gps", "dvt", "pymobiledevice3", "spoofing"]
 classifiers = [
     "Development Status :: 4 - Beta",
