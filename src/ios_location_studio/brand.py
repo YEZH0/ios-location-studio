@@ -8,6 +8,7 @@ template - the strings are re-injected at runtime from the backend.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 # --- identity -------------------------------------------------------------
@@ -61,6 +62,11 @@ DISCLAIMER: list[str] = [
     "项目作者不对违规使用承担任何责任。衍生分发遵循原开源协议。",
 ]
 
+# Stamped into the consent record kept by the browser. If the wording above
+# ever changes, the stamp changes with it and every user is asked again - a
+# silent edit to the disclaimer must not inherit old consent.
+CONSENT_VERSION = hashlib.sha1("||".join(DISCLAIMER).encode("utf-8")).hexdigest()[:8]
+
 
 def brand_payload() -> dict[str, Any]:
     """Serialisable branding block attached to every status response."""
@@ -78,4 +84,5 @@ def brand_payload() -> dict[str, Any]:
         "disclaimer_title": DISCLAIMER_TITLE,
         "disclaimer_short": DISCLAIMER_SHORT,
         "disclaimer": DISCLAIMER,
+        "consent_version": CONSENT_VERSION,
     }

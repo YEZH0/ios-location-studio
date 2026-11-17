@@ -104,6 +104,18 @@ def test_index_is_served(client):
     assert "Location Studio" in response.text
 
 
+def test_consent_version_tracks_disclaimer(client):
+    """Editing the disclaimer text must invalidate every stored consent."""
+    brand = client.get("/api/brand").json()
+    version = brand["consent_version"]
+    assert len(version) == 8
+    assert all(char in "0123456789abcdef" for char in version)
+
+    from ios_location_studio import brand as brand_module
+
+    assert version == brand_module.CONSENT_VERSION
+
+
 def test_index_stamps_asset_urls(client):
     """Windows users kept a cached bundle after an upgrade; stamped URLs fix it."""
     html = client.get("/").text
