@@ -459,7 +459,7 @@ function showConsentGate(brand, version) {
      <ul class="modal-disclaimer">${items}</ul>
      <label class="consent-check">
        <input type="checkbox" id="consentBox" />
-       <span>我已阅读并理解上述全部条款，承诺仅将本工具用于 iOS 技术研究，不用于考勤打卡、游戏作弊、薅羊毛、轨迹造假或任何欺诈场景。</span>
+       <span>我已阅读并理解上述全部条款，并确认：我本人授权本工具修改这台设备的定位设置（设备归我所有，或已取得所有者明确同意），承诺仅将本工具用于 iOS 技术研究，不用于考勤打卡、游戏作弊、薅羊毛、轨迹造假或任何欺诈场景。</span>
      </label>
      <button class="modal-ok" type="button" id="consentBtn" disabled>同意并开始使用</button>
      <p class="consent-foot">未勾选无法继续。若不同意，请直接关闭此标签页。</p>`,

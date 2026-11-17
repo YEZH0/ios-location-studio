@@ -60,12 +60,13 @@ def test_brand_is_served(client):
 def test_disclaimer_is_served(client):
     brand = client.get("/api/brand").json()
     assert brand["disclaimer_title"] == "免责声明"
-    assert len(brand["disclaimer"]) == 4
+    assert len(brand["disclaimer"]) == 5
     joined = "".join(brand["disclaimer"])
     # The clauses that actually carry legal weight must survive edits.
     assert "仅面向 iOS 开发者做定位相关功能技术研究" in joined
     assert "高血压通知" in joined
     assert "考勤打卡" in joined and "游戏作弊" in joined
+    assert "卖菜刀" in joined and "自愿授权" in joined
     assert "作者不对违规使用承担任何责任" in joined
 
 
