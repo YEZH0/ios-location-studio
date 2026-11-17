@@ -482,8 +482,15 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
  * blue and roads readable while leaving markers, tooltips and overlays
  * untouched (they live in their own panes).
  */
+/*
+ * Dark basemap without a tile provider that wants an API key: invert the OSM
+ * tiles, rotate the hue back, then pull most of the colour out. The previous
+ * values kept the beige/blue pair alive, so land came out brown and the ocean
+ * teal - technically dark, visibly broken. A near-neutral grey keeps the
+ * coastlines crisp and reads like a real dark basemap.
+ */
 .map-dark .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.75);
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(1.05) saturate(0.35);
 }
 
 .leaflet-control-attribution {
