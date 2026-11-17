@@ -33,3 +33,9 @@ Reference: https://www.gnu.org/licenses/gpl-3.0.html (sections 4–6).
 MFi certificates/keys and pairing records are neither source nor bundled assets.
 The optional upstream importer is retained for inspection; the GUI never invokes it.
 User-supplied identity authorization, revocation and device acceptance remain separate.
+
+Offline overview data: Natural Earth ne_110m_land (public domain), by Natural Earth contributors.
+Source: https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_land.geojson
+Terms: https://www.naturalearthdata.com/about/terms-of-use/
+Processed 2026-11-17: retained polygon rings, rounded lon/lat to 3 decimals, removed feature metadata.
+Shipped as src/location_studio_mac/assets/world-land.json. Overview only; not a street/navigation map.

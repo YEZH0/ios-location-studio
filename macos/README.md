@@ -104,3 +104,11 @@ sandbox-exec -f scripts/dvt-local-only.sb .venv/bin/python scripts/test_dvt.py \
 发送沙箱允许本机回环通信供 userspace 隧道使用，禁止外部 IP 通信。
 不需要管理员权限、内核隧道、SIP/Gatekeeper 调整或 MFi 身份。
 详见 RESEARCH.md。如需把 DVT 接入 GUI，另作明确的功能与发布审查。
+
+## Mac 界面与 Windows 品牌对齐
+
+参考 Windows 稳定分支的设备/会话/坐标控制台：左侧控制，右侧离线世界选点；
+开始和停止固定在底部，认证与日志可展开。支持1/3分钟快捷时长、自定义时长、
+快捷城市、坐标复制与标记同步、地图缩放/全球视图。小窗口可滚动控制区。
+离线地图使用 Natural Earth 公共领域陆地轮廓，不请求在线地图服务；不包含街道或地标搜索。
+本轮只改变界面与随包资源；默认仍是实验性 iAP2，DVT 仍使用独立脚本。

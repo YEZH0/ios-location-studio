@@ -72,3 +72,24 @@ def test_watchdog_cleans_authentication_child(app,tmp_path):
         result=subprocess.run(['ps','-p',str(child),'-o','stat='],capture_output=True,text=True)
         return result.returncode!=0 or result.stdout.strip().startswith('Z')
     wait(app,gone)
+
+
+def test_ui_coordinate_zoom_and_duration_controls(app):
+    from location_studio_mac.app import Window
+    w=Window()
+    w.quick_buttons[2].click()
+    assert float(w.lon.text())==139.6503
+    w.duration_buttons[0][0].click()
+    assert w.duration.value()==60
+    w.duration.setValue(120)
+    assert not any(button.isChecked() for button,_ in w.duration_buttons)
+    w.lat.setText('invalid');w.update_target()
+    assert '坐标无效' in w.target_label.text()
+    w.set_coordinates(40.7128,-74.006)
+    w.grid.change_zoom(2)
+    assert w.grid.zoom==2
+    point=w.grid.point(-74.006,40.7128)
+    west,north,width,height=w.grid.bounds()
+    assert abs(west+point.x()/w.grid.width()*width+74.006)<1e-8
+    assert abs(north-point.y()/w.grid.height()*height-40.7128)<1e-8
+    w.close()
