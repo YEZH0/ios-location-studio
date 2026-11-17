@@ -12,7 +12,7 @@ import webbrowser
 import uvicorn
 
 from . import __version__
-from .brand import BRAND, TUTORIAL_HINT
+from .brand import BRAND, DISCLAIMER_SHORT, TUTORIAL_HINT
 
 DEFAULT_PORT = 8899
 
@@ -68,6 +68,10 @@ def main(argv: list[str] | None = None) -> int:
            会话结束或断开连接时，真实定位会自动恢复。
   教程     {TUTORIAL_HINT}
   停止     Ctrl+C
+  ---------------------------------------------
+  {DISCLAIMER_SHORT}
+  仅限 iOS 技术研究，禁止考勤打卡 / 游戏作弊 / 活动薅羊毛 / 轨迹造假。
+  完整免责声明见 {url} 侧栏，或 /api/brand 的 disclaimer 字段。
 """
     print(banner, flush=True)
 

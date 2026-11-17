@@ -15,7 +15,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .brand import AUTHOR, BRAND, BRAND_SLUG, HOMEPAGE, TUTORIAL_HINT, brand_payload
+from .brand import (
+    AUTHOR,
+    BRAND,
+    BRAND_SLUG,
+    DISCLAIMER_SHORT,
+    HOMEPAGE,
+    TUTORIAL_HINT,
+    brand_payload,
+)
 from .device import Inventory, list_connected
 from .presets import PRESETS
 from .session import SessionManager
@@ -84,7 +92,9 @@ def create_app() -> FastAPI:
         version=__version__,
         description=(
             "Simulate iPhone location over Apple's DVT developer channel.\n\n"
-            f"作者：{AUTHOR} · 教程：{TUTORIAL_HINT}"
+            f"作者：{AUTHOR} · 教程：{TUTORIAL_HINT}\n\n"
+            f"**{DISCLAIMER_SHORT}。** 完整免责声明见 `/api/brand` 的 `disclaimer` 字段，"
+            "或在控制台侧栏底部展开。"
         ),
         lifespan=lifespan,
     )
@@ -105,6 +115,8 @@ def create_app() -> FastAPI:
         response.headers["X-Brand"] = BRAND_SLUG
         response.headers["X-Brand-Name"] = quote(BRAND, safe="")
         response.headers["X-Author"] = f"{AUTHOR} <{HOMEPAGE}>"
+        # ASCII on purpose: the Chinese wording lives in /api/brand.disclaimer.
+        response.headers["X-Usage-Policy"] = "research-and-education-only; no-fraud"
         return response
 
     if WEB_DIR.is_dir():

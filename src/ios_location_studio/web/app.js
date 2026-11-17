@@ -301,6 +301,7 @@ function injectBranding(brand) {
   document.title = `iOS Location Studio · ${brand.brand}`;
   injectSidebarCard(brand);
   injectMapWatermark(brand);
+  injectDisclaimer(brand);
 }
 
 function injectSidebarCard(brand) {
@@ -318,8 +319,18 @@ function injectSidebarCard(brand) {
     .map((channel) => `<span class="brand-chip">${escapeHtml(channel.platform)}</span>`)
     .join('');
 
+  // The full promo artwork (both QR codes) as one clickable thumbnail. The
+  // sidebar is too narrow to scan from, so a click opens it at full size.
+  const promo = brand.promo_image
+    ? `<button class="promo-thumb" type="button" data-promo="${escapeHtml(brand.promo_image)}"
+              title="点击放大抖音 / 小红书二维码">
+         <img src="${escapeHtml(brand.promo_image)}" alt="关注 ${escapeHtml(brand.brand)}：抖音 / 小红书二维码" loading="lazy" />
+         <span class="promo-hint">扫码关注 · 点击放大</span>
+       </button>`
+    : '';
+
   // Rebuild only when the payload actually changed; this runs on every poll.
-  const signature = `${brand.brand}|${brand.tutorial_keyword}|${brand.footer_note}|${channels}`;
+  const signature = `${brand.brand}|${brand.tutorial_keyword}|${brand.footer_note}|${channels}|${promo}`;
   if (card.dataset.signature === signature) return;
   card.dataset.signature = signature;
 
@@ -330,11 +341,145 @@ function injectSidebarCard(brand) {
     </div>
     <p class="brand-line">抖音 / 小红书 搜索 <b>「${escapeHtml(brand.tutorial_keyword)}」</b></p>
     <p class="brand-sub">领取详细使用教程 · 开发者模式开启 · 认证失败排查</p>
+    ${promo}
     <div class="brand-foot">
       <div class="brand-chips">${channels}</div>
       <a href="${escapeHtml(brand.homepage)}" target="_blank" rel="noopener">GitHub</a>
     </div>
     <p class="brand-note">${escapeHtml(brand.footer_note)}</p>`;
+
+  const promoBtn = card.querySelector('.promo-thumb');
+  if (promoBtn) {
+    promoBtn.addEventListener('click', () => {
+      openModal(
+        '扫码关注 · 欧耶哥爱数码',
+        `<div class="modal-promo">
+           <img src="${promoBtn.dataset.promo}" alt="抖音 / 小红书二维码" />
+           <p>抖音 · 小红书同名「${escapeHtml(brand.tutorial_keyword)}」，扫码或直接搜索都能找到。</p>
+         </div>`,
+      );
+    });
+  }
+}
+
+/*
+ * Disclaimer card. Rendered from the backend payload for the same reason as
+ * the branding: it must survive a template edit. Collapsed to a scroll box so
+ * four paragraphs do not push the controls off screen.
+ */
+function injectDisclaimer(brand) {
+  const items = brand.disclaimer || [];
+  if (!items.length) return;
+
+  let card = document.getElementById('disclaimerCard');
+  if (!card) {
+    card = document.createElement('section');
+    card.id = 'disclaimerCard';
+    card.className = 'card disclaimer-card';
+    const slot = document.getElementById('disclaimerSlot');
+    const panel = document.querySelector('.panel');
+    if (slot) slot.appendChild(card);
+    else if (panel) panel.appendChild(card);
+  }
+
+  const signature = `${brand.disclaimer_short}|${items.join('|')}`;
+  if (card.dataset.signature === signature) return;
+  card.dataset.signature = signature;
+
+  const list = items.map((text) => `<li>${escapeHtml(text)}</li>`).join('');
+  card.innerHTML = `
+    <div class="card-head">
+      <span class="label warn-label">${escapeHtml(brand.disclaimer_title || '免责声明')}</span>
+      <button class="ghost" type="button" data-disclaimer>全文</button>
+    </div>
+    <p class="disclaimer-short">${escapeHtml(brand.disclaimer_short || '')}</p>
+    <ul class="disclaimer-list">${list}</ul>`;
+
+  const open = card.querySelector('[data-disclaimer]');
+  if (open) {
+    open.addEventListener('click', () => {
+      openModal(
+        brand.disclaimer_title || '免责声明',
+        `<ul class="modal-disclaimer">${list}</ul>`,
+      );
+    });
+  }
+
+  maybeShowDisclaimerOnce(brand, list);
+}
+
+/*
+ * First visit only: put the full disclaimer in front of the user before the
+ * first simulation. Everything is stored locally, no tracking, and the panel
+ * can be dismissed with one click - but it cannot be missed.
+ */
+function maybeShowDisclaimerOnce(brand, listHtml) {
+  let seen = null;
+  try {
+    seen = localStorage.getItem('ils.disclaimer.seen');
+  } catch (error) {
+    return;
+  }
+  if (seen) return;
+  try {
+    localStorage.setItem('ils.disclaimer.seen', '1');
+  } catch (error) {
+    return;
+  }
+
+  setTimeout(() => {
+    openModal(
+      '使用前须知 · 免责声明',
+      `<ul class="modal-disclaimer">${listHtml}</ul>
+       <p class="modal-ok-note">继续使用即表示你已阅读并接受上述条款。教程：抖音 / 小红书「${escapeHtml(brand.tutorial_keyword)}」</p>
+       <button class="modal-ok" type="button" data-close>我已阅读并知晓</button>`,
+    );
+  }, 900);
+}
+
+/* ---------------------------------------------------------------- modal */
+
+function ensureModal() {
+  let modal = document.getElementById('modal');
+  if (modal) return modal;
+
+  modal = document.createElement('div');
+  modal.id = 'modal';
+  modal.className = 'modal';
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal-close" type="button" data-close aria-label="关闭">×</button>
+      <h3 id="modalTitle"></h3>
+      <div class="modal-body" id="modalBody"></div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  modal.addEventListener('click', (event) => {
+    if (event.target.dataset.close !== undefined) closeModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.hidden) closeModal();
+  });
+  return modal;
+}
+
+function openModal(title, html) {
+  const modal = ensureModal();
+  modal.querySelector('#modalTitle').textContent = title;
+  modal.querySelector('#modalBody').innerHTML = html;
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add('show'));
+}
+
+function closeModal() {
+  const modal = document.getElementById('modal');
+  if (!modal) return;
+  modal.classList.remove('show');
+  setTimeout(() => {
+    modal.hidden = true;
+  }, 180);
 }
 
 function injectMapWatermark(brand) {

@@ -54,6 +54,26 @@ def test_brand_is_served(client):
     assert brand["tutorial_keyword"] == "欧耶哥爱数码"
     assert brand["homepage"].startswith("https://github.com/")
     assert len(brand["channels"]) >= 2
+    assert brand["promo_image"].endswith(".jpg")
+
+
+def test_disclaimer_is_served(client):
+    brand = client.get("/api/brand").json()
+    assert brand["disclaimer_title"] == "免责声明"
+    assert len(brand["disclaimer"]) == 4
+    joined = "".join(brand["disclaimer"])
+    # The clauses that actually carry legal weight must survive edits.
+    assert "仅面向 iOS 开发者做定位相关功能技术研究" in joined
+    assert "高血压通知" in joined
+    assert "考勤打卡" in joined and "游戏作弊" in joined
+    assert "作者不对违规使用承担任何责任" in joined
+
+
+@pytest.mark.parametrize("name", ["follow-banner.jpg"])
+def test_brand_assets_are_shipped(client, name):
+    response = client.get(f"/static/assets/{name}")
+    assert response.status_code == 200
+    assert len(response.content) > 40000
 
 
 def test_provenance_headers(client):
@@ -61,6 +81,7 @@ def test_provenance_headers(client):
     assert response.headers["X-Brand"] == "ouyege-aishuma"
     assert unquote(response.headers["X-Brand-Name"]) == "欧耶哥爱数码"
     assert "github.com" in response.headers["X-Author"]
+    assert "research-and-education-only" in response.headers["X-Usage-Policy"]
 
 
 def test_simulate_without_device_returns_conflict(client):
