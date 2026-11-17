@@ -1,0 +1,15 @@
+# Normalise line endings across platforms
+* text=auto eol=lf
+
+*.py   text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.md   text eol=lf
+*.toml text eol=lf
+
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.ico  binary
+*.zip  binary

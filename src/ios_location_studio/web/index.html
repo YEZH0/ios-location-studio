@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iOS Location Studio</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div class="app">
+
+  <aside class="panel">
+    <header class="brand">
+      <div class="brand-mark"><span></span></div>
+      <div class="brand-text">
+        <h1>Location Studio</h1>
+        <p>iPhone 定位模拟 · DVT 通道</p>
+      </div>
+      <span class="version" id="version">v–</span>
+    </header>
+
+    <section class="card device" id="deviceCard">
+      <div class="card-head">
+        <span class="label">设备</span>
+        <span class="pill" id="devicePill"><i class="dot"></i><em>检测中</em></span>
+      </div>
+      <div class="device-body">
+        <div class="device-name" id="deviceName">—</div>
+        <div class="device-meta" id="deviceMeta">正在枚举 USB 设备…</div>
+      </div>
+    </section>
+
+    <section class="card session" id="sessionCard" data-state="idle">
+      <div class="card-head">
+        <span class="label">会话</span>
+        <span class="pill" id="sessionPill"><i class="dot"></i><em>未启动</em></span>
+      </div>
+      <div class="counter" id="counter">--:--</div>
+      <div class="counter-label" id="counterLabel">等待开始</div>
+      <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="session-note" id="sessionNote">会话结束或拔线后，iPhone 会自动回到真实定位。</p>
+    </section>
+
+    <section class="card target">
+      <div class="card-head">
+        <span class="label">目标坐标</span>
+        <button class="ghost" id="copyBtn" title="复制坐标">复制</button>
+      </div>
+      <div class="coord-row">
+        <label>
+          <span>纬度</span>
+          <input id="latInput" type="number" step="0.000001" min="-90" max="90" placeholder="40.416863" />
+        </label>
+        <label>
+          <span>经度</span>
+          <input id="lonInput" type="number" step="0.000001" min="-180" max="180" placeholder="-3.703876" />
+        </label>
+      </div>
+      <div class="place" id="placeName">在地图上点击任意位置，或多选下方快捷地点</div>
+      <div class="search">
+        <input id="searchInput" type="search" placeholder="搜索城市或地标，回车确认" autocomplete="off" />
+        <div class="search-results" id="searchResults"></div>
+      </div>
+    </section>
+
+    <div class="chips" id="durationChips">
+      <button data-hold="60">1 分钟</button>
+      <button data-hold="300" class="active">5 分钟</button>
+      <button data-hold="600">10 分钟</button>
+      <button data-hold="1800">30 分钟</button>
+      <button data-hold="0">不限时</button>
+    </div>
+
+    <button class="primary" id="actionBtn" disabled>
+      <span class="btn-label">开始模拟</span>
+      <span class="btn-hint" id="btnHint">先选择目标位置</span>
+    </button>
+
+    <section class="presets">
+      <div class="card-head"><span class="label">快捷地点</span></div>
+      <div class="preset-grid" id="presetGrid"></div>
+    </section>
+  </aside>
+
+  <main class="map-wrap">
+    <div id="map"></div>
+    <div class="map-hud">
+      <button class="hud-btn" id="layerBtn" title="切换底图">暗色</button>
+      <button class="hud-btn" id="recenterBtn" title="回到目标点">居中</button>
+    </div>
+    <div class="map-tip" id="mapTip">点击地图选择模拟位置</div>
+  </main>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

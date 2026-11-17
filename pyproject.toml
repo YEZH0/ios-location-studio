@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ios-location-studio"
+version = "0.1.0"
+description = "Visual simulated-location studio for iPhone over Apple's DVT developer channel. No jailbreak, no MFi certificate."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["ios", "iphone", "location", "simulation", "gps", "dvt", "pymobiledevice3", "spoofing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pymobiledevice3>=9.0.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+ios-location-studio = "ios_location_studio.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/YEZH0/ios-location-studio"
+Repository = "https://github.com/YEZH0/ios-location-studio"
+Issues = "https://github.com/YEZH0/ios-location-studio/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ios_location_studio"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE"]
