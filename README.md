@@ -5,6 +5,7 @@
 
 在浏览器里为 iPhone 模拟定位。点地图 → 选时长 → 开始，手机上的地图、天气、指南针和 App 会一起跟着走。
 
+![CI](https://github.com/YEZH0/ios-location-studio/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776ab?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-22d3ee)
 ![License](https://img.shields.io/badge/license-MIT-34d399)
