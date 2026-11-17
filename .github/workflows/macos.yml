@@ -1,0 +1,32 @@
+name: macOS iAP2
+on:
+  push:
+    branches: [feat/macos-iap2, main]
+    paths: ['macos/**', '.github/workflows/macos.yml']
+  pull_request:
+    paths: ['macos/**', '.github/workflows/macos.yml']
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.13.8'
+          python-version: '3.13'
+      - run: uv sync --locked
+      - run: uv run --no-sync pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+      - run: uv run --no-sync python scripts/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-unsigned-build
+          path: |
+            macos/dist/macOS-source.zip
+            macos/dist/iOS Location Studio.app
