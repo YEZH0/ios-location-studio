@@ -8,6 +8,7 @@ template - the strings are re-injected at runtime from the backend.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 # --- identity -------------------------------------------------------------
@@ -57,9 +58,16 @@ DISCLAIMER: list[str] = [
     "禁止用于企业考勤打卡、游戏作弊、活动薅羊毛、轨迹造假、虚假报备等欺诈、规避风控场景。",
     "通过本工具跨地区解锁 Watch 医疗类功能，违反 Apple 用户协议；"
     "该健康通知未经过国内药监审批，结果不能作为医疗诊断参考。",
-    "使用者自行承担 Apple 账号风控、设备功能失效、平台封禁等全部后果，"
-    "项目作者不对违规使用承担任何责任。衍生分发遵循原开源协议。",
+    "本工具只提供技术能力，不替任何人决定用途——就像卖菜刀：刀能切菜，也可能被拿去伤人，"
+    "卖刀的人不为用刀的方式负责。同理，项目作者不对违规使用承担任何责任，衍生分发遵循原开源协议。",
+    "开始之前请确认：你本人自愿授权本工具修改这台设备的定位设置，设备归你所有，"
+    "或你已取得设备所有者的明确同意。给不出这份授权，就请立即关闭页面，不要把工具用在别人的设备上。",
 ]
+
+# Stamped into the consent record kept by the browser. If the wording above
+# ever changes, the stamp changes with it and every user is asked again - a
+# silent edit to the disclaimer must not inherit old consent.
+CONSENT_VERSION = hashlib.sha1("||".join(DISCLAIMER).encode("utf-8")).hexdigest()[:8]
 
 
 def brand_payload() -> dict[str, Any]:
@@ -78,4 +86,5 @@ def brand_payload() -> dict[str, Any]:
         "disclaimer_title": DISCLAIMER_TITLE,
         "disclaimer_short": DISCLAIMER_SHORT,
         "disclaimer": DISCLAIMER,
+        "consent_version": CONSENT_VERSION,
     }

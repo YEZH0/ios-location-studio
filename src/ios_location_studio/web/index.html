@@ -16,7 +16,7 @@
 <title>iOS Location Studio · 欧耶哥爱数码</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='%2322d3ee'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23071018'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="/static/style.css" />
+<link rel="stylesheet" href="/static/style.css?v={{asset_stamp}}" />
 </head>
 <body>
 <div class="app">
@@ -76,11 +76,8 @@
     </section>
 
     <div class="chips" id="durationChips">
-      <button data-hold="60">1 分钟</button>
-      <button data-hold="300" class="active">5 分钟</button>
-      <button data-hold="600">10 分钟</button>
-      <button data-hold="1800">30 分钟</button>
-      <button data-hold="0">不限时</button>
+      <button data-hold="60" class="active">1 分钟</button>
+      <button data-hold="180">3 分钟</button>
     </div>
 
     <button class="primary" id="actionBtn" disabled>
@@ -110,6 +107,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v={{asset_stamp}}"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 const state = {
   lat: null,
   lon: null,
-  hold: 300,
+  hold: 60,
   session: { state: 'idle' },
   device: { connected: false, devices: [] },
   brand: null,
@@ -11,6 +11,9 @@ const state = {
   rev: -1,
   mapMode: 'dark',
   busy: false,
+  // Consent is required before a session may be started; see ensureConsent().
+  consented: false,
+  consentAsked: false,
 };
 
 const el = (id) => document.getElementById(id);
@@ -246,14 +249,22 @@ el('actionBtn').addEventListener('click', async () => {
 
   if (live) {
     await call('/api/stop', 'POST');
-  } else {
-    if (state.lat === null) return;
-    await call('/api/simulate', 'POST', {
-      latitude: state.lat,
-      longitude: state.lon,
-      hold_seconds: state.hold > 0 ? state.hold : null,
-    });
+    return;
   }
+
+  // Defensive: the button is disabled without consent, but a stale DOM or a
+  // keyboard-activated element must not slip past the gate.
+  if (!state.consented) {
+    if (state.brand) showConsentGate(state.brand, state.brand.consent_version || '0');
+    return;
+  }
+
+  if (state.lat === null) return;
+  await call('/api/simulate', 'POST', {
+    latitude: state.lat,
+    longitude: state.lon,
+    hold_seconds: state.hold || 60,
+  });
 });
 
 async function call(url, method, body) {
@@ -302,6 +313,7 @@ function injectBranding(brand) {
   injectSidebarCard(brand);
   injectMapWatermark(brand);
   injectDisclaimer(brand);
+  ensureConsent(brand);
 }
 
 function injectSidebarCard(brand) {
@@ -404,37 +416,79 @@ function injectDisclaimer(brand) {
       );
     });
   }
-
-  maybeShowDisclaimerOnce(brand, list);
 }
 
-/*
- * First visit only: put the full disclaimer in front of the user before the
- * first simulation. Everything is stored locally, no tracking, and the panel
- * can be dismissed with one click - but it cannot be missed.
- */
-function maybeShowDisclaimerOnce(brand, listHtml) {
-  let seen = null;
-  try {
-    seen = localStorage.getItem('ils.disclaimer.seen');
-  } catch (error) {
-    return;
-  }
-  if (seen) return;
-  try {
-    localStorage.setItem('ils.disclaimer.seen', '1');
-  } catch (error) {
-    return;
-  }
+/* --------------------------------------------------------------- consent */
 
-  setTimeout(() => {
-    openModal(
-      '使用前须知 · 免责声明',
-      `<ul class="modal-disclaimer">${listHtml}</ul>
-       <p class="modal-ok-note">继续使用即表示你已阅读并接受上述条款。教程：抖音 / 小红书「${escapeHtml(brand.tutorial_keyword)}」</p>
-       <button class="modal-ok" type="button" data-close>我已阅读并知晓</button>`,
-    );
-  }, 900);
+/*
+ * Hard gate: the panel opens with a modal that cannot be dismissed until the
+ * user ticks the box and presses 同意. Nothing else in the UI can start a
+ * session while consent is missing - the action button stays disabled.
+ *
+ * Consent is stored with CONSENT_VERSION from the backend, so editing the
+ * disclaimer wording forces everybody to read the new text once.
+ */
+function ensureConsent(brand) {
+  if (state.consentAsked) return;
+  const version = brand.consent_version || '0';
+  let stored = null;
+  try {
+    stored = localStorage.getItem('ils.consent');
+  } catch (error) {
+    stored = null;
+  }
+  if (stored === version) {
+    state.consented = true;
+    refreshActionState();
+    return;
+  }
+  state.consented = false;
+  state.consentAsked = true;
+  refreshActionState();
+  showConsentGate(brand, version);
+}
+
+function showConsentGate(brand, version) {
+  const items = (brand.disclaimer || [])
+    .map((text) => `<li>${escapeHtml(text)}</li>`)
+    .join('');
+
+  openModal(
+    '使用前须知 · 免责声明',
+    `<p class="consent-lead">${escapeHtml(brand.disclaimer_short || '')}</p>
+     <ul class="modal-disclaimer">${items}</ul>
+     <label class="consent-check">
+       <input type="checkbox" id="consentBox" />
+       <span>我已阅读并理解上述全部条款，并确认：我本人授权本工具修改这台设备的定位设置（设备归我所有，或已取得所有者明确同意），承诺仅将本工具用于 iOS 技术研究，不用于考勤打卡、游戏作弊、薅羊毛、轨迹造假或任何欺诈场景。</span>
+     </label>
+     <button class="modal-ok" type="button" id="consentBtn" disabled>同意并开始使用</button>
+     <p class="consent-foot">未勾选无法继续。若不同意，请直接关闭此标签页。</p>`,
+    { locked: true },
+  );
+
+  const box = document.getElementById('consentBox');
+  const btn = document.getElementById('consentBtn');
+  if (!box || !btn) return;
+
+  box.addEventListener('change', () => {
+    btn.disabled = !box.checked;
+    btn.classList.toggle('ready', box.checked);
+  });
+
+  btn.addEventListener('click', () => {
+    if (!box.checked) return;
+    try {
+      localStorage.setItem('ils.consent', version);
+    } catch (error) {
+      /* private mode: consent only lasts for this page load */
+    }
+    state.consented = true;
+    state.consentAsked = false;
+    unlockModal();
+    closeModal();
+    refreshActionState();
+    showToast('已记录你的同意，选择位置后即可开始模拟', 4000);
+  });
 }
 
 /* ---------------------------------------------------------------- modal */
@@ -465,17 +519,29 @@ function ensureModal() {
   return modal;
 }
 
-function openModal(title, html) {
+function openModal(title, html, options = {}) {
   const modal = ensureModal();
+  const locked = options.locked === true;
+  modal.dataset.locked = locked ? '1' : '0';
+  modal.classList.toggle('modal-locked', locked);
   modal.querySelector('#modalTitle').textContent = title;
   modal.querySelector('#modalBody').innerHTML = html;
   modal.hidden = false;
   requestAnimationFrame(() => modal.classList.add('show'));
 }
 
+function unlockModal() {
+  const modal = document.getElementById('modal');
+  if (!modal) return;
+  modal.dataset.locked = '0';
+  modal.classList.remove('modal-locked');
+}
+
 function closeModal() {
   const modal = document.getElementById('modal');
   if (!modal) return;
+  // A locked modal (the consent gate) must not be dismissed by backdrop or Esc.
+  if (modal.dataset.locked === '1') return;
   modal.classList.remove('show');
   setTimeout(() => {
     modal.hidden = true;
@@ -697,6 +763,11 @@ function refreshActionState() {
   }
 
   label.textContent = '开始模拟';
+  if (!state.consented) {
+    button.disabled = true;
+    hint.textContent = '请先同意免责声明';
+    return;
+  }
   if (!connected) {
     button.disabled = true;
     hint.textContent = '未检测到 USB 设备';

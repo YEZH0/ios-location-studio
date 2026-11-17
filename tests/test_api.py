@@ -60,12 +60,13 @@ def test_brand_is_served(client):
 def test_disclaimer_is_served(client):
     brand = client.get("/api/brand").json()
     assert brand["disclaimer_title"] == "免责声明"
-    assert len(brand["disclaimer"]) == 4
+    assert len(brand["disclaimer"]) == 5
     joined = "".join(brand["disclaimer"])
     # The clauses that actually carry legal weight must survive edits.
     assert "仅面向 iOS 开发者做定位相关功能技术研究" in joined
     assert "高血压通知" in joined
     assert "考勤打卡" in joined and "游戏作弊" in joined
+    assert "卖菜刀" in joined and "自愿授权" in joined
     assert "作者不对违规使用承担任何责任" in joined
 
 
@@ -98,7 +99,65 @@ def test_simulate_rejects_out_of_range(client):
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("hold", [600, 1801, 0, -5])
+def test_simulate_caps_hold_at_three_minutes(client, hold):
+    """The panel only offers 1 or 3 minutes; the API must refuse anything longer."""
+    response = client.post(
+        "/api/simulate",
+        json={"latitude": 40.416863, "longitude": -3.703876, "hold_seconds": hold},
+    )
+    assert response.status_code == 422
+
+
+def test_simulate_accepts_three_minutes(client):
+    """180 s is the longest allowed session, so it must pass validation."""
+    response = client.post(
+        "/api/simulate",
+        json={"latitude": 40.416863, "longitude": -3.703876, "hold_seconds": 180},
+    )
+    # No iPhone attached in CI - the request is valid, so the device check answers.
+    assert response.status_code == 409
+
+
 def test_index_is_served(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "Location Studio" in response.text
+
+
+def test_consent_version_tracks_disclaimer(client):
+    """Editing the disclaimer text must invalidate every stored consent."""
+    brand = client.get("/api/brand").json()
+    version = brand["consent_version"]
+    assert len(version) == 8
+    assert all(char in "0123456789abcdef" for char in version)
+
+    from ios_location_studio import brand as brand_module
+
+    assert version == brand_module.CONSENT_VERSION
+
+
+def test_index_stamps_asset_urls(client):
+    """Windows users kept a cached bundle after an upgrade; stamped URLs fix it."""
+    html = client.get("/").text
+    stamp = server.asset_stamp()
+    assert len(stamp) == 10
+    assert f"/static/app.js?v={stamp}" in html
+    assert f"/static/style.css?v={stamp}" in html
+    assert "{{asset_stamp}}" not in html
+
+
+def test_assets_are_revalidated_not_cached_hard(client):
+    for path in ("/", "/static/app.js", "/static/style.css"):
+        response = client.get(path)
+        assert response.status_code == 200
+        cache_control = response.headers["Cache-Control"]
+        # `no-cache` keeps the ETag round-trip: 304 when unchanged, new body
+        # when the file changed. A missing header lets browsers skip it.
+        assert "no-cache" in cache_control
+
+
+def test_json_declares_utf8_charset(client):
+    """PowerShell 5.1 falls back to latin-1 without an explicit charset."""
+    response = client.get("/api/brand")
+    assert "charset=utf-8" in response.headers["content-type"].lower()

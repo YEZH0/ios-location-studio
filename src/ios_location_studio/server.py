@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,7 +11,7 @@ from typing import Any
 from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -32,14 +33,30 @@ WEB_DIR = Path(__file__).parent / "web"
 DEVICE_REFRESH_SECONDS = 8.0
 
 
+def asset_stamp() -> str:
+    """Fingerprint of the front-end bundles, used to bust browser caches.
+
+    Windows users hit a stale `app.js` after an upgrade and saw the old map
+    provider fail with "API KEY REQUIRED" - the server was already fixed, the
+    browser was not. Appending this stamp to every asset URL makes a changed
+    file a different URL, so a normal reload always picks it up.
+    """
+    digest = hashlib.sha1()
+    for name in ("app.js", "style.css"):
+        path = WEB_DIR / name
+        if path.is_file():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
 class SimulateRequest(BaseModel):
     latitude: float = Field(..., ge=-90.0, le=90.0, description="WGS84 latitude")
     longitude: float = Field(..., ge=-180.0, le=180.0, description="WGS84 longitude")
-    hold_seconds: float | None = Field(
-        default=None,
+    hold_seconds: float = Field(
+        default=180.0,
         ge=1.0,
-        le=86400.0,
-        description="How long to keep the fix active; null means until stopped manually.",
+        le=180.0,
+        description="How long to keep the fix active. Hard-capped at 3 minutes: the panel offers 1 or 3 minutes only, so a session can never be left running indefinitely.",
     )
     udid: str | None = Field(default=None, description="Target device; first device when omitted.")
 
@@ -117,17 +134,27 @@ def create_app() -> FastAPI:
         response.headers["X-Author"] = f"{AUTHOR} <{HOMEPAGE}>"
         # ASCII on purpose: the Chinese wording lives in /api/brand.disclaimer.
         response.headers["X-Usage-Policy"] = "research-and-education-only; no-fraud"
+
+        # Declare UTF-8 explicitly. Browsers assume it for JSON, but Windows
+        # PowerShell 5.1 falls back to latin-1 and mangles every Chinese string.
+        content_type = response.headers.get("content-type", "")
+        if content_type.startswith("application/json") and "charset" not in content_type:
+            response.headers["content-type"] = "application/json; charset=utf-8"
+
+        # Local assets are revalidated on every load (ETag -> 304 when
+        # unchanged). Without this the browser kept an old bundle for hours.
+        if request.url.path == "/" or request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
         return response
 
     if WEB_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
     @app.get("/", include_in_schema=False)
-    async def index() -> FileResponse:
-        return FileResponse(
-            WEB_DIR / "index.html",
-            headers={"Cache-Control": "no-store"},
-        )
+    async def index() -> HTMLResponse:
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        html = html.replace("{{asset_stamp}}", asset_stamp())
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
