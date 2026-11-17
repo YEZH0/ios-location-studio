@@ -135,6 +135,12 @@ def create_app() -> FastAPI:
         # ASCII on purpose: the Chinese wording lives in /api/brand.disclaimer.
         response.headers["X-Usage-Policy"] = "research-and-education-only; no-fraud"
 
+        # Declare UTF-8 explicitly. Browsers assume it for JSON, but Windows
+        # PowerShell 5.1 falls back to latin-1 and mangles every Chinese string.
+        content_type = response.headers.get("content-type", "")
+        if content_type.startswith("application/json") and "charset" not in content_type:
+            response.headers["content-type"] = "application/json; charset=utf-8"
+
         # Local assets are revalidated on every load (ETag -> 304 when
         # unchanged). Without this the browser kept an old bundle for hours.
         if request.url.path == "/" or request.url.path.startswith("/static/"):

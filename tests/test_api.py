@@ -122,3 +122,9 @@ def test_assets_are_revalidated_not_cached_hard(client):
         # `no-cache` keeps the ETag round-trip: 304 when unchanged, new body
         # when the file changed. A missing header lets browsers skip it.
         assert "no-cache" in cache_control
+
+
+def test_json_declares_utf8_charset(client):
+    """PowerShell 5.1 falls back to latin-1 without an explicit charset."""
+    response = client.get("/api/brand")
+    assert "charset=utf-8" in response.headers["content-type"].lower()
