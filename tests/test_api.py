@@ -102,3 +102,23 @@ def test_index_is_served(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "Location Studio" in response.text
+
+
+def test_index_stamps_asset_urls(client):
+    """Windows users kept a cached bundle after an upgrade; stamped URLs fix it."""
+    html = client.get("/").text
+    stamp = server.asset_stamp()
+    assert len(stamp) == 10
+    assert f"/static/app.js?v={stamp}" in html
+    assert f"/static/style.css?v={stamp}" in html
+    assert "{{asset_stamp}}" not in html
+
+
+def test_assets_are_revalidated_not_cached_hard(client):
+    for path in ("/", "/static/app.js", "/static/style.css"):
+        response = client.get(path)
+        assert response.status_code == 200
+        cache_control = response.headers["Cache-Control"]
+        # `no-cache` keeps the ETag round-trip: 304 when unchanged, new body
+        # when the file changed. A missing header lets browsers skip it.
+        assert "no-cache" in cache_control
