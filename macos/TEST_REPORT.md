@@ -97,3 +97,13 @@ Mac调整为侧栏控制台＋离线世界选点，固定开始/停止、折叠�
 
 本轮未修改Windows、根公共文件或上游iAP2核心协议；不宣称iAP2已修复。
 仍缺其他机型/Intel/VoiceOver/休眠断电等覆盖，独立QA、安全/发行审查、签名公证待完成。
+
+## 上传前 CI 隔离修复
+
+远程根CI在Ubuntu/Python3.11–3.13失败，日志显示其根目录pytest误收集macos/scripts、
+macos/tests及vendor测试，而根环境未安装location_studio_mac/PySide6/accessory_location。
+新增macos/conftest.py：仅当由祖先项目启动pytest时隔离Mac子项目；从macos/运行仍完整收集。
+未改根CI、根pyproject或Windows测试。新增边界测试，远程重跑结果另行核验。
+Mac专用PR工作流此前被取消，不能宣称远程Mac CI已通过。
+本地复核：Mac独立环境55项通过；从仓库根以--rootdir=.对macos执行collect-only，
+正确收集0项。该收集检查不代表根项目所有测试通过，需远程CI验证。
