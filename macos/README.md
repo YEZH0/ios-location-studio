@@ -77,3 +77,30 @@ fetch origin 并 merge origin/main，再测试和正常 push；若冲突涉及�
 保留上游完整固定版本源码与版权声明，未将 GPL 引擎作为 MIT 代码处理。
 备份：保存源码提交与私有本地身份；恢复应用可切换至先前源码版本重建，不自动覆盖或删除身份。
 无生产部署、数据库或自动启动服务。
+
+## 可选 DVT 独立实验（已实机验证，不替换 GUI）
+
+2026-11-17：iPhone 15 / iOS 27.0.1 的原始 iAP2 对照仍未改变地图；
+独立 DVT 测试中，老板确认纽约蓝点生效，清除并断开后真实位置正常。
+**当前 GUI 仍是 iAP2**，下面是独立实验脚本，不表示 iAP2 已修复。
+
+要求：完整 Xcode、手机开发者模式已开启、USB 信任关系。不会自动开启开发者模式。
+首次准备可能向 Apple 申请开发者镜像票据，包含设备标识和 nonce/镜像摘要。
+必须取得用户对该数据流的同意后才执行带显式同意参数的准备命令。
+本次老板已在聊天明确同意；准备使用 Apple 官方 devicectl，不使用第三方票据服务器。
+
+```sh
+# 工作目录 macos/；先完成 uv sync --locked
+uv run --no-sync python scripts/prepare_dvt.py --allow-apple-ticket
+# 请换成经用户确认的 WGS-84 坐标；测试阶段最长 180 秒
+sandbox-exec -f scripts/dvt-local-only.sb .venv/bin/python scripts/test_dvt.py \
+  --latitude 40.7128 --longitude -74.0060 --duration 90
+```
+
+运行中打开手机地图点击当前位置。`dvt_set_sent` 只表示请求已发送，必须人工验证蓝点。
+脚本到期或收到 SIGINT/SIGTERM 会尝试 `clear` 并关闭隧道；异常时同样执行清理。
+`dvt_clear_sent` 不替代真实定位恢复确认。结束后断开 USB 并在手机验证。
+本次准备挂载的开发者镜像供开发者服务使用，清除定位不等同于卸载该镜像。
+发送沙箱允许本机回环通信供 userspace 隧道使用，禁止外部 IP 通信。
+不需要管理员权限、内核隧道、SIP/Gatekeeper 调整或 MFi 身份。
+详见 RESEARCH.md。如需把 DVT 接入 GUI，另作明确的功能与发布审查。
