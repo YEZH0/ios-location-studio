@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .brand import AUTHOR, BRAND, BRAND_SLUG, HOMEPAGE, brand_payload
+from .brand import AUTHOR, BRAND, BRAND_SLUG, HOMEPAGE, TUTORIAL_HINT, brand_payload
 from .device import Inventory, list_connected
 from .presets import PRESETS
 from .session import SessionManager
@@ -80,9 +80,12 @@ def create_app() -> FastAPI:
                 pass
 
     app = FastAPI(
-        title="iOS Location Studio",
+        title=f"iOS Location Studio · {BRAND}",
         version=__version__,
-        description="Simulate iPhone location over Apple's DVT developer channel.",
+        description=(
+            "Simulate iPhone location over Apple's DVT developer channel.\n\n"
+            f"作者：{AUTHOR} · 教程：{TUTORIAL_HINT}"
+        ),
         lifespan=lifespan,
     )
     app.state.manager = manager
